@@ -955,6 +955,22 @@ InterpreterEmulator::getReturnValue(TR_ResolvedMethod *callee)
          recognizedMethod = TR::unknownMethod;
       }
 
+   const char * methodName = callee->signature(comp()->trMemory());
+   // traceMsg(comp(), "in getReturnValue trying to handle %s\n", methodName);
+   if (strlen(methodName) > 100 && !strncmp(methodName, "jdk/internal/foreign/layout/ValueLayouts$AbstractValueLayout.accessHandle()Ljava/lang/invoke/VarHandle;", 100))
+      {
+      //traceMsg(comp(), "Dealing with evaluating the result of accessHandle()\n");
+      Operand* layoutOperand = top();
+      TR::KnownObjectTable::Index layoutIndex = layoutOperand->getKnownObjectIndex();
+      TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
+      if (knot && layoutIndex != TR::KnownObjectTable::UNKNOWN && !knot->isNull(layoutIndex))
+         {
+         TR::KnownObjectTable::Index vhIndex = comp()->fej9()->getLayoutVH(comp(), layoutIndex);
+         if (vhIndex != TR::KnownObjectTable::UNKNOWN)
+            result = new (trStackMemory()) KnownObjOperand(vhIndex);
+         }
+      }
+
    switch (recognizedMethod)
       {
       case TR::java_lang_invoke_ILGenMacros_isCustomThunk:
