@@ -2848,6 +2848,7 @@ void TR_ResolvedJ9Method::construct()
       {
       {x(TR::java_lang_StringBuilder_init,               "<init>",             "()V")},
       {x(TR::java_lang_StringBuilder_init_int,           "<init>",             "(I)V")},
+      {x(TR::java_lang_StringBuilder_init_String,        "<init>",             "(Ljava/lang/String;)V")},
       {x(TR::java_lang_StringBuilder_append_bool,        "append",             "(Z)Ljava/lang/StringBuilder;")},
       {x(TR::java_lang_StringBuilder_append_char,        "append",             "(C)Ljava/lang/StringBuilder;")},
       {x(TR::java_lang_StringBuilder_append_double,      "append",             "(D)Ljava/lang/StringBuilder;")},

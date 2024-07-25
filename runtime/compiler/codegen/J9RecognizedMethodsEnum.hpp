@@ -257,6 +257,7 @@
 
    java_lang_StringBuilder_init,
    java_lang_StringBuilder_init_int,
+   java_lang_StringBuilder_init_String,
    java_lang_StringBuilder_append_bool,
    java_lang_StringBuilder_append_char,
    java_lang_StringBuilder_append_double,
