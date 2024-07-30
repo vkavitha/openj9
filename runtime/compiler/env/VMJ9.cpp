@@ -5111,6 +5111,23 @@ TR_J9VMBase::getMemberNameFieldKnotIndexFromMethodHandleKnotIndex(TR::Compilatio
    }
 
 TR::KnownObjectTable::Index
+TR_J9VMBase::getLayoutVH(TR::Compilation *comp, TR::KnownObjectTable::Index layoutIndex)
+   {
+   TR::VMAccessCriticalSection getLayoutVH(this);
+   TR::KnownObjectTable::Index result = TR::KnownObjectTable::UNKNOWN;
+   TR::KnownObjectTable *knot = comp->getKnownObjectTable();
+   if (!knot) return result;
+
+   uintptr_t layoutObj = knot->getPointer(layoutIndex);
+   uintptr_t vhObject = getReferenceField(layoutObj,
+                                 "handle",
+                                 "Ljava/lang/invoke/VarHandle;");
+   if (!vhObject) return result;
+   result = knot->getOrCreateIndex(vhObject);
+   return result;
+   }
+
+TR::KnownObjectTable::Index
 TR_J9VMBase::getMethodHandleTableEntryIndex(TR::Compilation *comp, TR::KnownObjectTable::Index vhIndex, TR::KnownObjectTable::Index adIndex)
    {
    TR::VMAccessCriticalSection getMethodHandleTableEntryIndex(this);

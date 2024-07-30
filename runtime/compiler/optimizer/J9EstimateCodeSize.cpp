@@ -159,11 +159,16 @@ class NeedsPeekingHeuristic
          {
             if (_bci.bcIndex() - _loadIndices[i] <= _distance)
             {
-               _needsPeeking = true;
+               //_needsPeeking = true;
                heuristicTraceIfTracerIsNotNull(_tracer, "there is a parm load at %d which is within %d of a call at %d", _loadIndices[i], _distance, _bci.bcIndex());
             }
          }
       };
+
+      void setNeedsPeekingDueToSaticFinalLoad()
+      {
+      _needsPeeking = true;
+      }
 
       void processByteCode()
          {
@@ -837,6 +842,19 @@ TR_J9EstimateCodeSize::processBytecodeAndGenerateCFG(TR_CallTarget *calltarget, 
             break;
          case J9BCinvokeinterface:
             cpIndex = bci.next2Bytes();
+            {
+            TR::Method *meth = comp()->fej9()->createMethod(comp()->trMemory(), calltarget->_calleeMethod->containingClass(), cpIndex);
+            const char * sig;
+            if (meth)
+               sig = meth->signature(comp()->trMemory());
+
+            if (sig && (!strncmp(sig, "java/lang/foreign/MemorySegment", 31)
+               || !strncmp(sig, "jdk/internal/foreign/MemorySegment", 34)))
+               {
+               nph.setNeedsPeekingDueToSaticFinalLoad();
+               heuristicTrace(tracer(), "Depth %d: invokeinterface call at bc index %d has Signature %s, enabled peeking for caller.",_recursionDepth,i,tracer()->traceSignature(meth));
+               }
+            }
             flags[i].set(InterpreterEmulator::BytecodePropertyFlag::isUnsanitizeable);
             break;
          case J9BCgetfield:
@@ -1325,6 +1343,13 @@ TR_J9EstimateCodeSize::realEstimateCodeSize(TR_CallTarget *calltarget, TR_CallSt
                                    (!disableMethodHandleInliningAfterFirstPass || _inliner->firstPass());
    bool inlineLambdaFormGeneratedMethod = comp()->fej9()->isLambdaFormGeneratedMethod(calltarget->_calleeMethod) &&
                                    (!disableMethodHandleInliningAfterFirstPass || _inliner->firstPass());
+   
+   TR::Block * * blocks =
+         (TR::Block * *) comp()->trMemory()->allocateStackMemory(maxIndex
+               * sizeof(TR::Block *));
+   memset(blocks, 0, maxIndex * sizeof(TR::Block *));
+
+   TR::CFG &cfg = processBytecodeAndGenerateCFG(calltarget, cfgRegion, bci, nph, blocks, flags);
 
    // No need to peek LF methods, as we'll always interprete the method with state in order to propagate object info
    // through bytecodes to find call targets
@@ -1350,12 +1375,6 @@ TR_J9EstimateCodeSize::realEstimateCodeSize(TR_CallTarget *calltarget, TR_CallSt
       methodSymbol->getResolvedMethod()->genMethodILForPeekingEvenUnderMethodRedefinition(methodSymbol, comp(), false, NULL);
       }
 
-   TR::Block * * blocks =
-         (TR::Block * *) comp()->trMemory()->allocateStackMemory(maxIndex
-               * sizeof(TR::Block *));
-   memset(blocks, 0, maxIndex * sizeof(TR::Block *));
-
-   TR::CFG &cfg = processBytecodeAndGenerateCFG(calltarget, cfgRegion, bci, nph, blocks, flags);
    int size = calltarget->_fullSize;
 
    // Adjust call frequency for unknown or direct calls, for which we don't get profiling information
@@ -1466,6 +1485,12 @@ TR_J9EstimateCodeSize::realEstimateCodeSize(TR_CallTarget *calltarget, TR_CallSt
       {
       bci.prepareToFindAndCreateCallsites(blocks, flags, callSites, &cfg, &newBCInfo, _recursionDepth, &callStack);
       bool iteratorWithState = (inlineArchetypeSpecimen && !mhInlineWithPeeking) || inlineLambdaFormGeneratedMethod;
+
+      if (callerName && (!strncmp(callerName, "java/lang/foreign/MemorySegment", 31)
+            || !strncmp(callerName, "jdk/internal/foreign/MemorySegment", 34)))
+         {
+         iteratorWithState = true;
+         }
 
       if (!bci.findAndCreateCallsitesFromBytecodes(wasPeekingSuccessfull, iteratorWithState))
          {
